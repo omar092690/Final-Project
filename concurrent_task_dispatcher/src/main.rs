@@ -218,12 +218,16 @@ fn monitor(
     }
 }
 
-fn run_simulation(name: &str, policy: Policy) {
+fn run_simulation(name: &str, policy: Policy, io_ratio: f64) {
     println!("\n== {} simulation ==", name);
     println!(
-        "{} tasks, 70% IO / 30% CPU, {} workers, cap {}%",
-        TASK_COUNT, WORKER_COUNT, CPU_CAP
-    );
+    "{} tasks, {:.0}% IO / {:.0}% CPU, {} workers, cap {}%",
+    TASK_COUNT,
+    io_ratio * 100.0,
+    (1.0 - io_ratio) * 100.0,
+    WORKER_COUNT,
+    CPU_CAP
+);
 
     let shared = Arc::new((
         Mutex::new(SharedState {
@@ -279,7 +283,7 @@ let monitor_handle = thread::spawn(move || {
     let generator_handle = thread::spawn(move || {
         for id in 1..=TASK_COUNT {
             let arrival_time = simulation_start.elapsed().as_millis();
-            let task = create_task(id, arrival_time, 0.70);
+            let task = create_task(id, arrival_time, io_ratio);
 
             let (lock, cvar) = &*generator_shared;
             let mut state = lock.lock().unwrap();
@@ -353,6 +357,10 @@ let monitor_handle = thread::spawn(move || {
 }
 
 fn main() {
-    run_simulation("FIFO", Policy::FIFO);
-    run_simulation("Optimized", Policy::Optimized);
+    // Balanced workload
+    run_simulation("FIFO balanced", Policy::FIFO, 0.70);
+    run_simulation("Optimized balanced", Policy::Optimized, 0.70);
+
+    run_simulation("FIFO stressed", Policy::FIFO, 0.20);
+    run_simulation("Optimized stressed", Policy::Optimized, 0.20);
 }
